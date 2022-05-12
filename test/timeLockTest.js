@@ -1,10 +1,9 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const increaseTimeTo = require("../utils/increaseTimeTo")
-const duration = require("../utils/duration")
-const ether = require("../utils/ether")
-const currentTime = require("../utils/currentTime")
-
+const increaseTimeTo = require("../utils/increaseTimeTo");
+const duration = require("../utils/duration");
+const ether = require("../utils/ether");
+const currentTime = require("../utils/currentTime");
 
 const chai = require("chai");
 const BN = require("bn.js");
@@ -13,8 +12,7 @@ const should = require("chai").should();
 chai.use(require("chai-bn")(BN));
 chai.use(require("chai-as-promised"));
 
-
-describe("Setting Timestamp", async function () {
+describe("TimeLock", async function () {
   before(async () => {
     const TimeLock = await ethers.getContractFactory("TimeLock");
     this.timeLock = await TimeLock.deploy();
@@ -41,7 +39,7 @@ describe("Setting Timestamp", async function () {
 
     // console.log(receipt);
 
-    console.log(receipt.events[0].topics[1].toString())
+    console.log(receipt.events[0]["startingTime"]);
   });
 
   it("should store eth in the contract", async () => {
@@ -58,37 +56,30 @@ describe("Setting Timestamp", async function () {
     expect(account2Balance.toString()).to.equal(ether(4).toString());
   });
 
-  it("should lock contract when timestamp elapse", async () => {
+  it("should lock contract when current time gets to starting time", async () => {
     await this.timeLock.connect(this.signer1).withdraw(ether(1)).should.be
       .fulfilled;
 
     const signer1Balance = await this.timeLock.balance(this.signer1.address);
 
-   expect(signer1Balance.toString()).to.equal(ether(1).toString());
-   
+    expect(signer1Balance.toString()).to.equal(ether(1).toString());
 
     increaseTimeTo(this.startingTime + 1);
-
-    const time = await currentTime();
 
     await this.timeLock
       .connect(this.signer1)
       .withdraw(ether(1))
       .should.be.rejectedWith("revert");
-    
+
     increaseTimeTo(this.closingTime + 1);
 
-    await this.timeLock
-      .connect(this.signer1)
-      .withdraw(ether(1))
-      .should.be.fulfilled;
-    
-    const newSigner1Balance = await this.timeLock.balance(this.signer1.address)
-    const signer2Balance = await this.timeLock.balance(this.signer2.address)
+    await this.timeLock.connect(this.signer1).withdraw(ether(1)).should.be
+      .fulfilled;
 
-    expect(newSigner1Balance.toString()).to.equal("0")
-    expect(signer2Balance.toString()).to.equal(ether(4).toString())
+    const newSigner1Balance = await this.timeLock.balance(this.signer1.address);
+    const signer2Balance = await this.timeLock.balance(this.signer2.address);
 
+    expect(newSigner1Balance.toString()).to.equal("0");
+    expect(signer2Balance.toString()).to.equal(ether(4).toString());
   });
 });
-
